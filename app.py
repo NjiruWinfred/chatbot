@@ -1,17 +1,3 @@
-"""
-EduLearn AI Chatbot API
-========================
-
-Production-ready FastAPI application for EduLearn chatbot with:
-- Google Gemini AI integration
-- MongoDB for chat history
-- Hybrid online/offline mode
-- Health checks
-
-Author: Data Analyst Team
-Date: March 2026
-"""
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -366,6 +352,5 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8000,
-        log_level="info"
+        port=$PORT
     )
