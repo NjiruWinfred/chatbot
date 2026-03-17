@@ -15,9 +15,11 @@ from pymongo import MongoClient
 # ========================================
 
 # Environment variables (use .env file or Render dashboard)
-GOOGLE_AI_API_KEY = os.getenv("GOOGLE_AI_API_KEY", "your_api_key_here")
-MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING", "your_mongodb_uri")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
+GOOGLE_AI_API_KEY = os.getenv("GOOGLE_AI_API_KEY") or os.getenv("GOOGLE_API_KEY", "")
+MONGODB_CONNECTION_STRING = os.getenv("MONGODB_CONNECTION_STRING") or os.getenv("MONGO_URI", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+PORT = int(os.getenv("PORT", "8000"))
+
 
 # Logging
 logging.basicConfig(
@@ -48,11 +50,14 @@ app.add_middleware(
 
 # Initialize Google AI
 gemini_client = None
-try:
-    gemini_client = genai.Client(api_key=GOOGLE_AI_API_KEY)
-    logger.info("✅ Google Gemini AI initialized")
-except Exception as e:
-    logger.error(f"❌ Failed to initialize Gemini: {e}")
+if GOOGLE_AI_API_KEY:
+    try:
+        gemini_client = genai.Client(api_key=GOOGLE_AI_API_KEY)
+        logger.info("✅ Google Gemini AI initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Gemini: {e}")
+else:
+    logger.warning("⚠️ GOOGLE_AI_API_KEY/GOOGLE_API_KEY not set. API will run in offline-only mode.")
 
 # Initialize MongoDB
 mongo_client = None
@@ -60,15 +65,18 @@ db = None
 chat_history_collection = None
 lessons_collection = None
 
-try:
-    mongo_client = MongoClient(MONGODB_CONNECTION_STRING)
-    db = mongo_client['chatbot_db']
-    chat_history_collection = db['messages']
-    lessons_collection = db['lessons']
-    logger.info("✅ MongoDB connected")
-except Exception as e:
-    logger.error(f"❌ MongoDB connection failed: {e}")
-
+if MONGODB_CONNECTION_STRING:
+    try:
+        mongo_client = MongoClient(MONGODB_CONNECTION_STRING, serverSelectionTimeoutMS=5000)
+        mongo_client.admin.command("ping")
+        db = mongo_client['chatbot_db']
+        chat_history_collection = db['messages']
+        lessons_collection = db['lessons']
+        logger.info("✅ MongoDB connected")
+    except Exception as e:
+        logger.error(f"❌ MongoDB connection failed: {e}")
+else:
+    logger.warning("⚠️ MONGODB_CONNECTION_STRING/MONGO_URI not set. Database features disabled.")
 # ========================================
 # DATA MODELS
 # ========================================
@@ -108,13 +116,22 @@ def get_context_from_db(question: str) -> str:
         logger.warning("⚠️ Lessons collection not available")
         return ""
     
-    try:
-        # Simple text search for relevant lessons
-        results = lessons_collection.find(
-            {"$text": {"$search": question}},
-            {"content": 1, "title": 1, "_id": 0}
-        ).limit(3)
-        
+     # Use text index if available, else fallback to regex search
+        try:
+            results = lessons_collection.find(
+                {"$text": {"$search": question}},
+                {"content": 1, "title": 1, "_id": 0}
+            ).limit(3)
+        except Exception:
+            results = lessons_collection.find(
+                {
+                    "$or": [
+                        {"title": {"$regex": question, "$options": "i"}},
+                        {"content": {"$regex": question, "$options": "i"}},
+                    ]
+                },
+                {"content": 1, "title": 1, "_id": 0}
+            ).limit(3)
         context_parts = []
         for lesson in results:
             title = lesson.get("title", "")
@@ -178,9 +195,12 @@ def generate_offline_answer(question: str, context: str) -> str:
     Generate offline answer using only context from database
     """
     if context:
-        return f"Based on the lesson content:\n\n{context[:500]}...\n\nNote: You're currently offline. For a more detailed explanation, please connect to the internet."
+        return (
+            "OFFLINE MODE:\n"
+            f"I found this from your saved lessons:\n\n{context[:700]}"
+        )
     else:
-        return "I don't have information about that in the downloaded lessons. Please connect to the internet for more help."
+        return "OFFLINE MODE:\nTopic not available in saved lessons. Connect to the internet for more help."
 
 def save_to_history(student_id: str, question: str, answer: str, mode: str):
     """
@@ -258,7 +278,7 @@ async def health_check():
     """Health check endpoint"""
     ai_status = "available" if gemini_client else "unavailable"
     db_status = "connected" if mongo_client else "disconnected"
-    overall_status = "healthy" if (gemini_client and mongo_client) else "degraded"
+     overall_status = "healthy" if (gemini_client or mongo_client) else "degraded"
     
     return HealthResponse(
         status=overall_status,
@@ -349,8 +369,4 @@ if __name__ == "__main__":
     print(f"💬 Ask Endpoint: POST http://localhost:8000/ask")
     print("=" * 60)
     
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=$PORT
-    )
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
