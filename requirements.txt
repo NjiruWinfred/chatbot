@@ -1,8 +1,8 @@
-fastapi==0.115.12
+fastapi
 uvicorn
 pydantic
 pandas
 numpy
 pymongo
-google-genai==1.11.0
+google-genai
 python-dotenv
