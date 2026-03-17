@@ -1,14 +1,7 @@
-# EduLearn Chatbot - Requirements for Render
-# Updated to versions that provide wheels compatible with newer Python builds.
-fastapi==0.115.12
-uvicorn[standard]==0.34.0
-pydantic==2.11.3
-
-# Google AI SDK (matches: from google import genai)
+# EduLearn Chatbot - requirements tuned to avoid pydantic-core build failures on Render
+fastapi==0.103.2
+uvicorn==0.24.0.post1
+pydantic==1.10.15
 google-genai==1.11.0
-
-# Database
 pymongo==4.11.3
-
-# Utilities
 python-dotenv==1.0.1
