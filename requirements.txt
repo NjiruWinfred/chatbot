@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+nest_asyncio
 pydantic
 pandas
 numpy
