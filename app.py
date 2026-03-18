@@ -134,7 +134,7 @@ def get_context_from_db(question: str) -> str:
                 {"content": 1, "title": 1, "_id": 0}
             ).limit(3)
 
-        context_parts = []
+            context_parts = []
         for lesson in results:
             title = lesson.get("title", "")
             content = lesson.get("content", "")
