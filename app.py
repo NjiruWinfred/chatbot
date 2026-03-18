@@ -144,7 +144,7 @@ def get_context_from_db(question: str) -> str:
         
         logger.info("⚠️ No context found in database")
         return ""
-    
+
         except Exception as e:
             logger.error(f"❌ Error fetching context: {e}")
             return ""
