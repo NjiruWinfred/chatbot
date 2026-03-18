@@ -115,13 +115,14 @@ def get_context_from_db(question: str) -> str:
         logger.warning("⚠️ Lessons collection not available")
         return ""
     
-     # Use text index if available, else fallback to regex search
+    try:
+        # Use text index if available, else fallback to regex search
         try:
             results = lessons_collection.find(
                 {"$text": {"$search": question}},
                 {"content": 1, "title": 1, "_id": 0}
             ).limit(3)
-        except Exception:
+        except Exception: # This specific except catches errors if text index doesn't exist or query fails
             results = lessons_collection.find(
                 {
                     "$or": [
@@ -131,23 +132,24 @@ def get_context_from_db(question: str) -> str:
                 },
                 {"content": 1, "title": 1, "_id": 0}
             ).limit(3)
+
         context_parts = []
         for lesson in results:
             title = lesson.get("title", "")
             content = lesson.get("content", "")
             if content:
                 context_parts.append(f"{title}\n{content}")
-        
+
         if context_parts:
             logger.info(f"✅ Found {len(context_parts)} lessons for context")
             return "\n\n".join(context_parts)[:2000]  # Limit context length
-        
-        logger.info("⚠️ No context found in database")
-        return ""
-
-        except Exception as e:
-            logger.error(f"❌ Error fetching context: {e}")
+        else:
+            logger.info("⚠️ No context found in database")
             return ""
+
+    except Exception as e:
+        logger.error(f"❌ Error fetching context: {e}")
+        return ""
 def generate_online_answer(question: str, context: str) -> Optional[str]:
     """
     Generate answer using Google Gemini AI
