@@ -44,7 +44,7 @@ app.add_middleware(
     allow_origins=["*"],  # Configure for production
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 # Initialize Google AI
