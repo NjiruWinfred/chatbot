@@ -278,7 +278,7 @@ async def health_check():
     """Health check endpoint"""
     ai_status = "available" if gemini_client else "unavailable"
     db_status = "connected" if mongo_client else "disconnected"
-     overall_status = "healthy" if (gemini_client or mongo_client) else "degraded"
+    overall_status = "healthy" if (gemini_client or mongo_client) else "degraded"
     
     return HealthResponse(
         status=overall_status,
